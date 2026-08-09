@@ -17,51 +17,36 @@ class BlockingForegroundService : Service() {
 
     private val handler = Handler(Looper.getMainLooper())
     private var pollingRunnable: Runnable? = null
-    private val pollIntervalMs = 500L // Slightly faster polling (700ms) for Snappier blocking
+    private val pollIntervalMs = 500L
     private var blockedSites = hashSetOf<String>()
     private var authToken    = ""
 
-    // 1. Define your baseline system whitelist
     private val systemWhitelist = hashSetOf(
-        "com.nothingalternative.app", // Don't block yourself!
-        "com.android.settings",       // Allow system settings (so users can grant permissions)
-        "com.android.systemui",       // System UI (Notification shade, home navigation)
-        "com.google.android.permissioncontroller", // Permission popups
+        "com.nothingalternative.app",
+        "com.android.settings",
+        "com.android.systemui",
+        "com.google.android.permissioncontroller",
         "com.android.launcher",
         "com.android.launcher3",
-        "com.nothing.launcher", // Nothing OS Launcher
-        "com.sec.android.app.launcher", // Samsung One UI Home
-        "com.google.android.apps.nexuslauncher", // Pixel Launcher
-        "com.huawei.android.launcher", // Huawei Launcher
-        "com.miui.home", // Xiaomi MIUI Launcher
-        // Browsers
-        /*"com.android.chrome",
-        "com.microsoft.emmx",
-        "com.brave.browser",
-        "org.mozilla.firefox",
-        "com.opera.browser",
-        "com.sec.android.app.sbrowser",
-        "com.duckduckgo.mobile.android",
-        "com.google.android.googlequicksearchbox",
-        "com.google.android.gms",*/
+        "com.nothing.launcher",
+        "com.sec.android.app.launcher",
+        "com.google.android.apps.nexuslauncher",
+        "com.huawei.android.launcher",
+        "com.miui.home",
     )
 
-    // 2. TODO: Dynamically load your user-defined whitelist from Shared Preferences or API
     private var userWhitelist = hashSetOf<String>()
-        // "com.whatsapp", 
-        // "com.spotify.music"
-    
 
     companion object {
-        const val CHANNEL_ID   = "na_blocking_channel"
-        const val NOTIF_ID     = 1001
-        const val ACTION_START = "START"
-        const val ACTION_STOP  = "STOP"
-        const val EXTRA_GOAL   = "EXTRA_GOAL"
-        const val EXTRA_ALLOWED = "EXTRA_ALLOWED" 
+        const val CHANNEL_ID    = "na_blocking_channel"
+        const val NOTIF_ID      = 1001
+        const val ACTION_START  = "START"
+        const val ACTION_STOP   = "STOP"
+        const val EXTRA_GOAL    = "EXTRA_GOAL"
+        const val EXTRA_ALLOWED = "EXTRA_ALLOWED"
         const val EXTRA_BLOCKED = "EXTRA_BLOCKED"
         const val EXTRA_TOKEN   = "EXTRA_TOKEN"
-        private const val TAG  = "NA_ForegroundService"
+        private const val TAG   = "NA_ForegroundService"
         val BROWSER_PACKAGES = hashSetOf(
             "com.android.chrome",
             "com.microsoft.emmx",
@@ -86,6 +71,7 @@ class BlockingForegroundService : Service() {
         when (intent?.action) {
             ACTION_STOP -> {
                 stopPollingLoop()
+                OverlayManager.dismiss(this)
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 val vpnStopIntent = Intent(this, BlockingVpnService::class.java).apply {
                     action = BlockingVpnService.ACTION_STOP
@@ -98,11 +84,11 @@ class BlockingForegroundService : Service() {
                 val goal = intent?.getStringExtra(EXTRA_GOAL) ?: "Focus session"
                 val allowed = intent?.getStringArrayExtra(EXTRA_ALLOWED)?.toHashSet() ?: hashSetOf()
                 userWhitelist.clear()
-                userWhitelist.addAll(allowed)   
+                userWhitelist.addAll(allowed)
                 val blocked = intent?.getStringArrayExtra(EXTRA_BLOCKED)?.toHashSet() ?: hashSetOf()
                 blockedSites.clear()
                 blockedSites.addAll(blocked)
-                Log.d("BlockingForegroundService", "blockedSites received: $blocked")
+                Log.d(TAG, "blockedSites received: $blocked")
                 val vpnIntent = Intent(this, BlockingVpnService::class.java).apply {
                     action = BlockingVpnService.ACTION_START
                     putExtra(BlockingVpnService.EXTRA_BLOCKED, blocked.toTypedArray())
@@ -155,27 +141,37 @@ class BlockingForegroundService : Service() {
         }
 
         if (latestForegroundApp != null) {
-            val isWhitelisted = systemWhitelist.contains(latestForegroundApp) 
+            if (latestForegroundApp == packageName) {
+                OverlayManager.dismiss(this)
+                return
+            }
+
+            val isWhitelisted = systemWhitelist.contains(latestForegroundApp)
                 || userWhitelist.contains(latestForegroundApp)
-                || userWhitelist.any { 
-                    it.length > 3 && latestForegroundApp.contains(it, ignoreCase = true) 
+                || userWhitelist.any {
+                    it.length > 3 && latestForegroundApp.contains(it, ignoreCase = true)
                 }
                 || (userWhitelist.contains("browsers") && BROWSER_PACKAGES.contains(latestForegroundApp))
-                //|| userWhitelist.any { latestForegroundApp.contains(it, ignoreCase = true) }
+
             if (!isWhitelisted) {
+                if (OverlayManager.isCoolingDown()) {
+                    Log.d(TAG, "Cooldown active, skipping block for: $latestForegroundApp")
+                    return
+                }
                 Log.w(TAG, "BLOCKED: $latestForegroundApp")
-                forceReturnToApp()
+                forceReturnToApp(latestForegroundApp)
             }
         }
     }
 
-    private fun forceReturnToApp() {
-        // Press home first to dismiss the distracting app
+    private fun forceReturnToApp(blockedPackage: String) {
         val homeIntent = Intent(Intent.ACTION_MAIN).apply {
             addCategory(Intent.CATEGORY_HOME)
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         startActivity(homeIntent)
+        OverlayManager.show(this, blockedPackage, isWebsite = false)
+        Log.d(TAG, "Sent home + showing overlay for: $blockedPackage")
     }
 
     private fun buildNotification(goal: String): Notification {
@@ -183,7 +179,7 @@ class BlockingForegroundService : Service() {
         val openPi = PendingIntent.getActivity(this, 0, openIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val stopIntent = Intent(this, BlockingForegroundService::class.java).apply { action = ACTION_STOP }
         val stopPi = PendingIntent.getService(this, 1, stopIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-        
+
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Focus session active")
             .setContentText(goal)
@@ -208,6 +204,7 @@ class BlockingForegroundService : Service() {
 
     override fun onDestroy() {
         stopPollingLoop()
+        OverlayManager.dismiss(this)
         super.onDestroy()
     }
 }

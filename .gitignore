@@ -110,3 +110,8 @@ dist/
 keystore.properties
 google-services.json
 na_token.json
+
+# Old Files 
+oldblockingvpnservice.kt
+oldblockingforegroundservice.kt
+.vscode/

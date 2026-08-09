@@ -53,6 +53,6 @@ class ForegroundServiceModule(private val reactContext: ReactApplicationContext)
             action = BlockingForegroundService.ACTION_STOP
         }
         // Direct intentional termination signal
-        reactContext.stopService(intent)
+        reactContext.startService(intent)
     }
 }

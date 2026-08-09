@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { Platform } from 'react-native';
 import { useSession } from '../auth/SessionContext';
+import { DeviceEventEmitter } from 'react-native';
 import {
   startBlockingLoop,
   hasUsageStatsPermission,
+  hasOverlayPermission,
+  openOverlayPermissionSettings,
   openUsageStatsSettings,
 } from './androidBlocking';
 import {
@@ -50,9 +53,10 @@ export function useBlockingSetup(): BlockingSetupResult {
   }, []);
 
     useEffect(() => {
-      const emitter = new NativeEventEmitter();
-      const sub = emitter.addListener('ShowBlockingOverlay', () => {
-        setBlockedAppOverlay('blocked');
+      console.log('[BLOCKING] DeviceEventEmitter listener registered');
+      const sub = DeviceEventEmitter.addListener('ShowBlockingOverlay', (pkg?: string) => {
+        console.log('[BLOCKING] ShowBlockingOverlay received:', pkg);
+        setBlockedAppOverlay(pkg ?? 'blocked');
       });
       return () => sub.remove();
     }, []);
@@ -83,6 +87,12 @@ export function useBlockingSetup(): BlockingSetupResult {
       const granted = await hasUsageStatsPermission();
       if (!granted) {
         setBlockingStatus('permission_needed');
+        isBlockingActive.current = false;
+        return;
+      }
+      const overlayGranted = await hasOverlayPermission();
+      if (!overlayGranted) {
+        openOverlayPermissionSettings();
         isBlockingActive.current = false;
         return;
       }

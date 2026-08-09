@@ -22,7 +22,7 @@ interface UsageStatsNativeModule {
   hasUsageStatsPermission():  Promise<boolean>;
   openUsageStatsSettings():   void;
   // Fallbacks for checking overlays natively if added later to the native module
-  hasOverlayPermission?():    Promise<boolean>;
+  hasOverlayPermission():     Promise<boolean>;
 }
 
 const { UsageStatsModule } = NativeModules as {
@@ -61,21 +61,14 @@ export async function openOverlayPermissionSettings(): Promise<void> {
 /**
  * Checks if the system overlay window drawing permission is granted.
  */
-export async function checkOverlayPermission(): Promise<boolean> {
-  if (Platform.OS !== 'android') return false;
-  
-  // If your custom native module has an explicit checker, utilize it
-  if (UsageStatsModule && typeof UsageStatsModule.hasOverlayPermission === 'function') {
+export async function hasOverlayPermission(): Promise<boolean> {
+    if (Platform.OS !== 'android') return true;
+    if (!UsageStatsModule) return true;
     try {
       return await UsageStatsModule.hasOverlayPermission();
     } catch {
-      return false;
+      return true;
     }
-  }
-  
-  // Fail-closed fallback: default back to true if it hasn't crashed your setup yet,
-  // or false to force setup compliance tracking.
-  return false;
 }
 
 export async function getForegroundApp(): Promise<string | null> {

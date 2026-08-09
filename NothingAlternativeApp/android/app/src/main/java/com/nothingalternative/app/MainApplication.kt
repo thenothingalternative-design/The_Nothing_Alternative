@@ -14,6 +14,9 @@ import com.facebook.react.ReactHost
 import com.facebook.react.common.ReleaseLevel
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint
 import com.facebook.react.defaults.DefaultReactNativeHost
+import com.facebook.react.ReactInstanceEventListener
+import com.facebook.react.bridge.ReactContext
+import android.content.IntentFilter
 
 import expo.modules.ApplicationLifecycleDispatcher
 import expo.modules.ReactNativeHostWrapper
@@ -42,15 +45,30 @@ class MainApplication : Application(), ReactApplication {
     get() = ReactNativeHostWrapper.createReactHost(applicationContext, reactNativeHost)
 
   override fun onCreate() {
-    super.onCreate()
-    SoLoader.init(this, OpenSourceMergedSoMapping)
-    DefaultNewArchitectureEntryPoint.releaseLevel = try {
-      ReleaseLevel.valueOf(BuildConfig.REACT_NATIVE_RELEASE_LEVEL.uppercase())
-    } catch (e: IllegalArgumentException) {
-      ReleaseLevel.STABLE
-    }
-    loadReactNative(this)
-    ApplicationLifecycleDispatcher.onApplicationCreate(this)
+      super.onCreate()
+      SoLoader.init(this, OpenSourceMergedSoMapping)
+      DefaultNewArchitectureEntryPoint.releaseLevel = try {
+          ReleaseLevel.valueOf(BuildConfig.REACT_NATIVE_RELEASE_LEVEL.uppercase())
+      } catch (e: IllegalArgumentException) {
+          ReleaseLevel.STABLE
+      }
+      loadReactNative(this)
+      ApplicationLifecycleDispatcher.onApplicationCreate(this)
+
+      // Store ReactContext
+      reactHost.addReactInstanceEventListener(object : ReactInstanceEventListener {
+          override fun onReactContextInitialized(context: ReactContext) {
+              android.util.Log.d("NA_ForegroundService", "ReactContext set via reactHost")
+              ReactContextHolder.reactContext = context
+
+              // Register broadcast receiver once ReactContext is ready
+              val filter = android.content.IntentFilter("com.nothingalternative.app.BLOCKED_APP")
+              androidx.localbroadcastmanager.content.LocalBroadcastManager
+                  .getInstance(applicationContext)
+                  .registerReceiver(BlockingBroadcastReceiver(), filter)
+              android.util.Log.d("NA_ForegroundService", "BroadcastReceiver registered")
+          }
+      })
   }
 
   override fun onConfigurationChanged(newConfig: Configuration) {
