@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Nothing Alternative",
-    "slug": "NothingAlternativeApp",
+    "slug": "nothingalternative", 
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -64,7 +64,7 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "YOUR_EAS_PROJECT_ID"
+        "projectId": "c2d32b90-0431-4c72-bab0-c92658e2af5f"
       }
     }
   }

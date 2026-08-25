@@ -170,7 +170,7 @@ class BlockingForegroundService : Service() {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         startActivity(homeIntent)
-        OverlayManager.show(this, blockedPackage, isWebsite = false)
+        OverlayManager.show(this, blockedPackage)
         Log.d(TAG, "Sent home + showing overlay for: $blockedPackage")
     }
 

@@ -56,10 +56,11 @@ class BlockingVpnService : VpnService() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
-            ACTION_STOP  -> { 
+            ACTION_STOP -> {
                 stopVpn()
-                stopSelf() 
-                return START_NOT_STICKY }
+                stopSelf()
+                return START_NOT_STICKY
+            }
             ACTION_START -> {
                 blockedSites = intent.getStringArrayExtra(EXTRA_BLOCKED)?.toList() ?: emptyList()
                 Log.d(TAG, "Starting VPN, blocklist=$blockedSites")
@@ -148,7 +149,6 @@ class BlockingVpnService : VpnService() {
         }
     }
 
-    // ── Only change: show overlay when a domain is blocked ───────────────────
     private fun handleDnsQuery(
         query:   ByteArray,
         srcIp:   ByteArray,
@@ -163,12 +163,6 @@ class BlockingVpnService : VpnService() {
             domain == null          -> buildNxDomain(query)
             isDomainBlocked(domain) -> {
                 Log.i(TAG, "BLOCKED: $domain")
-                if (!OverlayManager.isShowing() && !OverlayManager.isCoolingDown()) {
-                    // Only show overlay if a browser is actually in the foreground
-                    if (OverlayManager.isBrowserInForeground(this)) {
-                        OverlayManager.show(this, domain, isWebsite = true)
-                    }
-                }
                 buildNxDomain(query)
             }
             else -> forwardToUpstream(query) ?: buildNxDomain(query)

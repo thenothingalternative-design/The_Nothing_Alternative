@@ -1,7 +1,7 @@
 /**
  * PricingScreen
  * Three-card layout: Monthly · Yearly (highlighted) · Lifetime
- * Tapping a plan calls POST /billing/checkout → opens Stripe URL in system browser.
+ * Tapping a plan triggers Google Play billing via RevenueCat.
  */
 
 import React, { useState } from 'react';
@@ -11,15 +11,14 @@ import {
   TouchableOpacity,
   ScrollView,
   StyleSheet,
-  Linking,
   ActivityIndicator,
-  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Colors, Fonts, FontSizes, Radius, Spacing } from '../../theme';
-import { getCheckoutUrl } from '../../api';
 import { Divider } from '../../components';
+import { getOfferings, purchasePackage, restorePurchases } from '../../api/purchases';
+import type { PurchasesPackage } from 'react-native-purchases';
 
 const PLANS = [
   {
@@ -35,9 +34,9 @@ const PLANS = [
   {
     plan:      'yearly' as const,
     name:      'Yearly',
-    price:     '$29.99',
+    price:     '$39.99',
     period:    'per year',
-    detail:    'Just $2.50/month.\nSave 50% vs monthly.',
+    detail:    'Just $3.33/month.\nSave 33% vs monthly.',
     badge:     'BEST VALUE',
     featured:  true,
     btnColor:  Colors.accent,
@@ -45,7 +44,7 @@ const PLANS = [
   {
     plan:      'lifetime' as const,
     name:      'Lifetime',
-    price:     '$89.99',
+    price:     '$99.99',
     period:    'one-time',
     detail:    'Pay once, own forever.\nNo recurring charges.',
     badge:     null,
@@ -56,19 +55,54 @@ const PLANS = [
 
 export default function PricingScreen() {
   const navigation = useNavigation();
-  const [loading, setLoading] = useState<string | null>(null);
-  const [error,   setError]   = useState<string | null>(null);
+  const [loading,  setLoading]  = useState<string | null>(null);
+  const [error,    setError]    = useState<string | null>(null);
+  const [packages, setPackages] = useState<Record<string, PurchasesPackage>>({});
+
+  // Load RC offerings on mount
+  React.useEffect(() => {
+    (async () => {
+      const offering = await getOfferings();
+      if (!offering) return;
+      const map: Record<string, PurchasesPackage> = {};
+      for (const pkg of offering.availablePackages) {
+        const id = pkg.product.identifier;
+        if (id.includes('monthly'))  map['monthly']  = pkg;
+        if (id.includes('yearly'))   map['yearly']   = pkg;
+        if (id.includes('lifetime')) map['lifetime'] = pkg;
+      }
+      setPackages(map);
+    })();
+  }, []);
 
   const handleChoose = async (plan: 'monthly' | 'yearly' | 'lifetime') => {
     if (loading) return;
+    const pkg = packages[plan];
+    if (!pkg) {
+      setError('Products not available yet. Please try again shortly.');
+      return;
+    }
     setLoading(plan);
     setError(null);
     try {
-      const url = await getCheckoutUrl(plan);
-      if (!url) throw new Error('Could not get checkout URL. Please try again.');
-      await Linking.openURL(url);
+      const customerInfo = await purchasePackage(pkg);
+      if (!customerInfo) throw new Error('Purchase failed. Please try again.');
+      navigation.goBack();
     } catch (e: any) {
       setError(e?.message ?? 'Something went wrong. Please try again.');
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const handleRestore = async () => {
+    setLoading('restore');
+    setError(null);
+    try {
+      await restorePurchases();
+      navigation.goBack();
+    } catch (e: any) {
+      setError(e?.message ?? 'Restore failed. Please try again.');
     } finally {
       setLoading(null);
     }
@@ -139,10 +173,18 @@ export default function PricingScreen() {
         {/* Error */}
         {error && <Text style={styles.error}>{error}</Text>}
 
+        {/* Restore purchases */}
+        <TouchableOpacity onPress={handleRestore} disabled={loading !== null}>
+          {loading === 'restore'
+            ? <ActivityIndicator color={Colors.textMut} size="small" />
+            : <Text style={styles.restore}>Restore purchases</Text>
+          }
+        </TouchableOpacity>
+
         {/* Footer */}
         <Text style={styles.footer}>
           All plans include a 7-day free trial{'\n'}
-          Secure payment via Stripe · No in-app purchase
+          Secure payment via Google Play
         </Text>
       </ScrollView>
     </SafeAreaView>
@@ -269,6 +311,14 @@ const styles = StyleSheet.create({
     color:      Colors.amber,
     textAlign:  'center',
     marginTop:  Spacing.sm,
+  },
+  restore: {
+    fontFamily: Fonts.mono,
+    fontSize:   FontSizes.xs,
+    color:      Colors.textMut,
+    textAlign:  'center',
+    marginTop:  Spacing.md,
+    textDecorationLine: 'underline',
   },
   footer: {
     fontFamily: Fonts.mono,

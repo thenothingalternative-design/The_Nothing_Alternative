@@ -2,25 +2,30 @@
  * Navigation
  *
  * Root navigator:
- *   - If not signed in → AuthStack (SignIn only)
- *   - If signed in     → MainTabs (Home, Profiles, History, Settings) + modal stacks
+ *   - First launch       → WalkthroughScreen (full-screen, blocks nav)
+ *   - Not signed in      → AuthStack (SignIn only)
+ *   - Signed in          → MainTabs (Home, Profiles, History, Settings) + modal stacks
  */
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Text, View, StyleSheet, Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors, Fonts, FontSizes } from '../theme';
 import { useAuth } from '../auth/AuthContext';
 
 // Screens
-import SignInScreen    from '../screens/Auth/SignInScreen';
-import HomeScreen      from '../screens/Home/HomeScreen';
-import ProfilesScreen  from '../screens/Profiles/ProfilesScreen';
-import HistoryScreen   from '../screens/History/HistoryScreen';
-import SettingsScreen  from '../screens/Settings/SettingsScreen';
-import PricingScreen   from '../screens/Pricing/PricingScreen';
+import SignInScreen      from '../screens/Auth/SignInScreen';
+import HomeScreen        from '../screens/Home/HomeScreen';
+import ProfilesScreen    from '../screens/Profiles/ProfilesScreen';
+import HistoryScreen     from '../screens/History/HistoryScreen';
+import SettingsScreen    from '../screens/Settings/SettingsScreen';
+import PricingScreen     from '../screens/Pricing/PricingScreen';
+import WalkthroughScreen from '../screens/WalkthroughScreen';
+
+const WALKTHROUGH_KEY = 'walkthrough_done';
 
 const Stack = createNativeStackNavigator();
 const Tab   = createBottomTabNavigator();
@@ -129,6 +134,11 @@ function RootStack() {
         component={PricingScreen}
         options={{ presentation: 'modal' }}
       />
+      <Stack.Screen
+        name="Walkthrough"
+        component={WalkthroughScreen}
+        options={{ presentation: 'modal' }}
+      />
     </Stack.Navigator>
   );
 }
@@ -137,8 +147,27 @@ function RootStack() {
 export default function RootNavigator() {
   const { isLoading, isSignedIn } = useAuth();
 
-  // Splash — show nothing while restoring auth
-  if (isLoading) return null;
+  // null = still reading AsyncStorage
+  const [walkthroughDone, setWalkthroughDone] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    AsyncStorage.getItem(WALKTHROUGH_KEY).then((val) => {
+      setWalkthroughDone(val === '1');
+    });
+  }, []);
+
+  const handleWalkthroughDone = async () => {
+    await AsyncStorage.setItem(WALKTHROUGH_KEY, '1');
+    setWalkthroughDone(true);
+  };
+
+  // Wait for both auth restore and storage read before rendering anything
+  if (isLoading || walkthroughDone === null) return null;
+
+  // First launch — show walkthrough before NavigationContainer
+  if (!walkthroughDone) {
+    return <WalkthroughScreen onDone={handleWalkthroughDone} />;
+  }
 
   return (
     <NavigationContainer>

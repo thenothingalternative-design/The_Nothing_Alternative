@@ -63,7 +63,7 @@ export function ChipRow({ items, variant, onRemove }: ChipRowProps) {
   if (items.length === 0) {
     return (
       <Text style={styles.emptyText}>
-        {variant === 'allowed' ? 'Only browsers allowed right now' : 'No sites blocked yet'}
+        {variant === 'allowed' ? 'Nothing allowed yet' : 'No sites blocked yet'}
       </Text>
     );
   }

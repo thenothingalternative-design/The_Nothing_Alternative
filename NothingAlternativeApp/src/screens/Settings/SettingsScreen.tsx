@@ -2,6 +2,7 @@
  * SettingsScreen
  *
  * Two tabs: Allowed Apps | Blocked Sites
+ * "?" button in header opens the walkthrough as a modal.
  *
  * Android: calls UsageStatsModule.getInstalledApps() — our own native module,
  *          no third-party package needed.
@@ -63,10 +64,10 @@ const tabStyles = StyleSheet.create({
     padding:          3,
     gap:              3,
   },
-  tab:          { flex: 1, paddingVertical: 8, borderRadius: Radius.sm, alignItems: 'center' },
-  tabActive:    { backgroundColor: Colors.bgRaised },
-  tabText:      { fontFamily: Fonts.mono, fontSize: FontSizes.xs, color: Colors.textMut },
-  tabTextActive:{ color: Colors.textPri },
+  tab:           { flex: 1, paddingVertical: 8, borderRadius: Radius.sm, alignItems: 'center' },
+  tabActive:     { backgroundColor: Colors.bgRaised },
+  tabText:       { fontFamily: Fonts.mono, fontSize: FontSizes.xs, color: Colors.textMut },
+  tabTextActive: { color: Colors.textPri },
 });
 
 const BROWSER_PACKAGES = [
@@ -83,38 +84,27 @@ const BROWSER_PACKAGES = [
 // ── Android: Allowed Apps tab ─────────────────────────────────────────────────
 function AndroidAppsTab() {
   const { activeProfile, addAllowedApp, removeAllowedApp } = useProfiles();
-  const [apps, setApps] = useState<any[]>([]);
-  const [query, setQuery] = useState('');
-  const [loading, setLoading] = useState(false);
-  
-  // Track BOTH permissions independently
-  const [hasUsagePermission, setHasUsagePermission] = useState(false);
+  const [apps, setApps]                       = useState<any[]>([]);
+  const [query, setQuery]                     = useState('');
+  const [loading, setLoading]                 = useState(false);
+  const [hasUsagePermission, setHasUsagePermission]   = useState(false);
   const [hasOverlayPermission, setHasOverlayPermission] = useState(false);
 
-  useEffect(() => {
-    checkAndLoad();
-  }, []);
+  useEffect(() => { checkAndLoad(); }, []);
 
   const checkAndLoad = async () => {
     const { UsageStatsModule } = NativeModules;
     if (!UsageStatsModule) return;
 
-    // Check Usage Stats
-    const usageGranted = await UsageStatsModule.hasUsageStatsPermission().catch(() => false);
-    setHasUsagePermission(usageGranted);
-
-    // Check Overlay Draw capabilities
+    const usageGranted   = await UsageStatsModule.hasUsageStatsPermission().catch(() => false);
     const overlayGranted = await UsageStatsModule.hasOverlayPermission().catch(() => false);
+    setHasUsagePermission(usageGranted);
     setHasOverlayPermission(overlayGranted);
 
     setLoading(true);
     try {
       const list: any[] = await UsageStatsModule.getInstalledApps();
-      const sorted = list.sort((a, b) =>
-        (a.appName ?? '').localeCompare(b.appName ?? '')
-      );
-      setApps(sorted);
-      console.log('PACKAGES:', sorted.map((a: any) => a.packageName).join('\n'));
+      setApps(list.sort((a, b) => (a.appName ?? '').localeCompare(b.appName ?? '')));
     } catch (e) {
       console.warn('[SettingsScreen] getInstalledApps error:', e);
     } finally {
@@ -122,12 +112,12 @@ function AndroidAppsTab() {
     }
   };
 
-  const allowed = new Set(activeProfile?.allowed_apps ?? []);
+  const allowed  = new Set(activeProfile?.allowed_apps ?? []);
   const filtered = apps.filter(a =>
     !BROWSER_PACKAGES.includes(a.packageName) && (
       !query ||
       (a.appName ?? '').toLowerCase().includes(query.toLowerCase()) ||
-      (a.hint ?? '').toLowerCase().includes(query.toLowerCase())
+      (a.hint   ?? '').toLowerCase().includes(query.toLowerCase())
     )
   );
 
@@ -136,19 +126,15 @@ function AndroidAppsTab() {
     return allowed.has(h) || [...allowed].some(a => a.includes(h) || h.includes(a));
   };
 
-  // Determine what banner to show and action to take dynamically
   const isFullyConfigured = hasUsagePermission && hasOverlayPermission;
-  
+
   const handleBannerPress = () => {
-    if (!hasUsagePermission) {
-      openUsageStatsSettings();
-    } else if (!hasOverlayPermission) {
-      openOverlayPermissionSettings();
-    }
+    if (!hasUsagePermission)   { openUsageStatsSettings();      return; }
+    if (!hasOverlayPermission) { openOverlayPermissionSettings(); }
   };
 
   const getBannerText = () => {
-    if (!hasUsagePermission) return 'Tap to grant Usage Access (required for tracking)';
+    if (!hasUsagePermission)   return 'Tap to grant Usage Access (required for tracking)';
     if (!hasOverlayPermission) return 'Usage granted. Tap to grant Draw Over Apps (required to block)';
     return 'Shield active — App detection and blocking fully functional';
   };
@@ -159,21 +145,11 @@ function AndroidAppsTab() {
       contentContainerStyle={appTabStyles.content}
       keyboardShouldPersistTaps="handled"
     >
-      {/* Dynamic Permission Banner */}
-      <TouchableOpacity 
-        style={appTabStyles.permBanner} 
-        onPress={handleBannerPress}
-      >
-        <View style={[
-          appTabStyles.permDot, 
-          { backgroundColor: isFullyConfigured ? Colors.green : Colors.amber }
-        ]} />
-        <Text style={appTabStyles.permText}>
-          {getBannerText()}
-        </Text>
+      <TouchableOpacity style={appTabStyles.permBanner} onPress={handleBannerPress}>
+        <View style={[appTabStyles.permDot, { backgroundColor: isFullyConfigured ? Colors.green : Colors.amber }]} />
+        <Text style={appTabStyles.permText}>{getBannerText()}</Text>
       </TouchableOpacity>
 
-      {/* Search Row */}
       <View style={appTabStyles.searchRow}>
         <TextInput
           style={appTabStyles.searchInput}
@@ -188,7 +164,6 @@ function AndroidAppsTab() {
 
       {loading && <ActivityIndicator color={Colors.accent} style={{ marginTop: Spacing.md }} />}
 
-      {/* All Browsers row */}
       <View style={appTabStyles.row}>
         <View style={appTabStyles.rowInfo}>
           <Text style={appTabStyles.appName}>All Browsers</Text>
@@ -196,13 +171,7 @@ function AndroidAppsTab() {
         </View>
         <Switch
           value={(activeProfile?.allowed_apps ?? []).includes('browsers')}
-          onValueChange={v => {
-            if (v) {
-              addAllowedApp('browsers');
-            } else {
-              removeAllowedApp('browsers');
-            }
-          }}
+          onValueChange={v => v ? addAllowedApp('browsers') : removeAllowedApp('browsers')}
           trackColor={{ false: Colors.border, true: Colors.accent }}
           thumbColor={Colors.textPri}
         />
@@ -216,9 +185,7 @@ function AndroidAppsTab() {
           </View>
           <Switch
             value={isOn(app)}
-            onValueChange={v =>
-              v ? addAllowedApp(app.packageName) : removeAllowedApp(app.packageName)
-            }
+            onValueChange={v => v ? addAllowedApp(app.packageName) : removeAllowedApp(app.packageName)}
             trackColor={{ false: Colors.border, true: Colors.accent }}
             thumbColor={Colors.textPri}
           />
@@ -227,38 +194,34 @@ function AndroidAppsTab() {
 
       <Divider style={{ marginVertical: Spacing.md }} />
       <Text style={appTabStyles.manualLabel}>Can't find it? Add manually:</Text>
-      <AddItemRow
-        placeholder="e.g. spotify, notion"
-        onAdd={addAllowedApp}
-        buttonColor={Colors.accent}
-      />
+      <AddItemRow placeholder="e.g. spotify, notion" onAdd={addAllowedApp} buttonColor={Colors.accent} />
     </ScrollView>
   );
 }
 
 const appTabStyles = StyleSheet.create({
-  content:      { padding: Spacing.lg, gap: 8 },
-  permBanner:   {
+  content:    { padding: Spacing.lg, gap: 8 },
+  permBanner: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: Colors.bgRaised, borderRadius: Radius.sm,
     padding: Spacing.sm, gap: 8, marginBottom: Spacing.sm,
   },
-  permDot:      { width: 8, height: 8, borderRadius: 4 },
-  permText:     { fontFamily: Fonts.mono, fontSize: FontSizes.xs, color: Colors.textSec, flex: 1 },
-  searchRow:    {
+  permDot:     { width: 8, height: 8, borderRadius: 4 },
+  permText:    { fontFamily: Fonts.mono, fontSize: FontSizes.xs, color: Colors.textSec, flex: 1 },
+  searchRow:   {
     backgroundColor: Colors.bgSurface, borderColor: Colors.border, borderWidth: 1,
     borderRadius: Radius.md, paddingHorizontal: Spacing.sm, height: 44,
     justifyContent: 'center', marginBottom: Spacing.sm,
   },
-  searchInput:  { color: Colors.textPri, fontFamily: Fonts.sans, fontSize: FontSizes.md },
-  row:          {
+  searchInput: { color: Colors.textPri, fontFamily: Fonts.sans, fontSize: FontSizes.md },
+  row:         {
     flexDirection: 'row', alignItems: 'center',
     paddingVertical: 10, borderBottomColor: Colors.border, borderBottomWidth: 1,
   },
-  rowInfo:      { flex: 1, gap: 2 },
-  appName:      { fontFamily: Fonts.sans,  fontSize: FontSizes.md, color: Colors.textPri },
-  appPkg:       { fontFamily: Fonts.mono,  fontSize: FontSizes.xs, color: Colors.textMut },
-  manualLabel:  { fontFamily: Fonts.sans,  fontSize: FontSizes.sm, color: Colors.textMut, marginBottom: 6 },
+  rowInfo:     { flex: 1, gap: 2 },
+  appName:     { fontFamily: Fonts.sans, fontSize: FontSizes.md, color: Colors.textPri },
+  appPkg:      { fontFamily: Fonts.mono, fontSize: FontSizes.xs, color: Colors.textMut },
+  manualLabel: { fontFamily: Fonts.sans, fontSize: FontSizes.sm, color: Colors.textMut, marginBottom: 6 },
 });
 
 // ── iOS / manual: Allowed Apps tab ────────────────────────────────────────────
@@ -291,11 +254,7 @@ function ManualAppsTab() {
       )}
 
       <Divider style={{ marginVertical: Spacing.sm }} />
-      <AddItemRow
-        placeholder="e.g. spotify, notion, figma"
-        onAdd={addAllowedApp}
-        buttonColor={Colors.accent}
-      />
+      <AddItemRow placeholder="e.g. spotify, notion, figma" onAdd={addAllowedApp} buttonColor={Colors.accent} />
     </ScrollView>
   );
 }
@@ -360,7 +319,7 @@ const blockedStyles = StyleSheet.create({
 });
 
 // ── Main screen ───────────────────────────────────────────────────────────────
-export default function SettingsScreen({ route }: any) {
+export default function SettingsScreen({ route, navigation }: any) {
   const initialTab = route?.params?.tab === 'blocked' ? 'blocked' : 'apps';
   const [activeTab, setActiveTab] = useState<'apps' | 'blocked'>(initialTab);
 
@@ -368,6 +327,13 @@ export default function SettingsScreen({ route }: any) {
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.title}>Settings</Text>
+        <TouchableOpacity
+          onPress={() => navigation.navigate('Walkthrough')}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          activeOpacity={0.6}
+        >
+          <Text style={styles.helpBtn}>?</Text>
+        </TouchableOpacity>
       </View>
       <Divider />
       <TabBar active={activeTab} onChange={setActiveTab} />
@@ -379,7 +345,15 @@ export default function SettingsScreen({ route }: any) {
 }
 
 const styles = StyleSheet.create({
-  safe:   { flex: 1, backgroundColor: Colors.bgBase },
-  header: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.md, paddingBottom: Spacing.md },
-  title:  { fontFamily: Fonts.sansBold, fontSize: FontSizes.xl, color: Colors.textPri },
+  safe: { flex: 1, backgroundColor: Colors.bgBase },
+  header: {
+    flexDirection:    'row',
+    alignItems:       'center',
+    justifyContent:   'space-between',
+    paddingHorizontal: Spacing.lg,
+    paddingTop:        Spacing.md,
+    paddingBottom:     Spacing.md,
+  },
+  title:   { fontFamily: Fonts.sansBold, fontSize: FontSizes.xl, color: Colors.textPri },
+  helpBtn: { fontFamily: Fonts.sansBold, fontSize: FontSizes.lg, color: Colors.textMut, paddingHorizontal: Spacing.sm },
 });

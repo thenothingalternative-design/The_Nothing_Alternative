@@ -31,20 +31,33 @@ export function BlockedScreen({ blockedDomain, onDismiss }: Props) {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.inner}>
-        <Text style={styles.icon}>🔒</Text>
+
+        {/* App mark */}
+        <View style={styles.iconWrap}>
+          <Text style={styles.appMark}>∅</Text>
+        </View>
+
         <Text style={styles.title}>Site blocked</Text>
+
         {blockedDomain ? (
-          <Text style={styles.domain}>{blockedDomain}</Text>
+          <View style={styles.domainPill}>
+            <Text style={styles.domainText}>{blockedDomain}</Text>
+          </View>
         ) : null}
+
         <Text style={styles.body}>
-          This site is blocked during your focus session
-          {goal ? `: "${goal}"` : ''}.
+          {goal
+            ? `You're focusing on "${goal}".`
+            : 'A focus session is active.'}
+          {'\n'}Come back when you're done.
         </Text>
+
         {onDismiss ? (
-          <TouchableOpacity style={styles.button} onPress={onDismiss}>
-            <Text style={styles.buttonText}>Go back</Text>
+          <TouchableOpacity style={styles.button} onPress={onDismiss} activeOpacity={0.8}>
+            <Text style={styles.buttonText}>← Go back</Text>
           </TouchableOpacity>
         ) : null}
+
       </View>
     </SafeAreaView>
   );
@@ -52,50 +65,78 @@ export function BlockedScreen({ blockedDomain, onDismiss }: Props) {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    flex:            1,
     backgroundColor: '#0A0A0A',
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent:  'center',
+    alignItems:      'center',
   },
   inner: {
-    alignItems: 'center',
-    paddingHorizontal: 32,
+    alignItems:        'center',
+    paddingHorizontal: 40,
+    gap:               16,
   },
-  icon: {
-    fontSize: 48,
-    marginBottom: 24,
+
+  // App mark
+  iconWrap: {
+    width:           72,
+    height:          72,
+    borderRadius:    18,
+    backgroundColor: '#16161a',
+    borderWidth:     1,
+    borderColor:     '#2a2a2e',
+    alignItems:      'center',
+    justifyContent:  'center',
+    marginBottom:    8,
   },
+  appMark: {
+    fontSize:  34,
+    color:     '#3a3aff',
+    lineHeight: 40,
+  },
+
   title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    marginBottom: 8,
-    letterSpacing: -0.5,
+    fontSize:      22,
+    fontWeight:    '700',
+    color:         '#ffffff',
+    letterSpacing: -0.4,
+    fontFamily:    'DMSans_700Bold',
   },
-  domain: {
-    fontSize: 14,
-    color: '#666666',
-    marginBottom: 16,
-    fontFamily: 'monospace',
+
+  // Blocked domain chip
+  domainPill: {
+    backgroundColor: '#1c1c22',
+    borderWidth:     1,
+    borderColor:     '#2a2a2e',
+    borderRadius:    99,
+    paddingHorizontal: 14,
+    paddingVertical:    5,
   },
+  domainText: {
+    fontSize:   13,
+    color:      '#8888aa',
+    fontFamily: 'DMSans_400Regular',
+  },
+
   body: {
-    fontSize: 15,
-    color: '#888888',
-    textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: 32,
+    fontSize:   15,
+    color:      '#8888aa',
+    textAlign:  'center',
+    lineHeight: 23,
+    fontFamily: 'DMSans_400Regular',
   },
+
+  // Accent button
   button: {
-    backgroundColor: '#1A1A1A',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#2A2A2A',
+    marginTop:         8,
+    backgroundColor:   '#3a3aff',
+    paddingHorizontal: 28,
+    paddingVertical:   12,
+    borderRadius:      10,
   },
   buttonText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '600',
+    color:      '#ffffff',
+    fontSize:   15,
+    fontWeight: '700',
+    fontFamily: 'DMSans_700Bold',
   },
 });

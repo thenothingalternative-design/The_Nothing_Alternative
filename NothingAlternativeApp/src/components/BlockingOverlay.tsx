@@ -62,18 +62,31 @@ export default function BlockingOverlay({ visible, blockedApp, onDismiss }: Prop
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#0A0A0A" />
       <View style={styles.inner}>
-        <Text style={styles.icon}>🔒</Text>
+
+        {/* App mark */}
+        <View style={styles.iconWrap}>
+          <Text style={styles.appMark}>∅</Text>
+        </View>
+
         <Text style={styles.title}>App blocked</Text>
+
         {appLabel ? (
-          <Text style={styles.domain}>{appLabel}</Text>
+          <View style={styles.appPill}>
+            <Text style={styles.appLabel}>{appLabel}</Text>
+          </View>
         ) : null}
+
         <Text style={styles.body}>
-          This app is blocked during your focus session
-          {goal ? `: "${goal}"` : ''}.
+          {goal
+            ? `You're focusing on "${goal}".`
+            : 'A focus session is active.'}
+          {'\n'}Come back when you're done.
         </Text>
-        <TouchableOpacity style={styles.button} onPress={onDismiss}>
-          <Text style={styles.buttonText}>Go back</Text>
+
+        <TouchableOpacity style={styles.button} onPress={onDismiss} activeOpacity={0.8}>
+          <Text style={styles.buttonText}>← Go back</Text>
         </TouchableOpacity>
+
       </View>
     </View>
   );
@@ -83,19 +96,78 @@ const styles = StyleSheet.create({
   container: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: '#0A0A0A',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 9999,
-    elevation: 9999,
+    justifyContent:  'center',
+    alignItems:      'center',
+    zIndex:          9999,
+    elevation:       9999,
   },
   inner: {
-    alignItems: 'center',
-    paddingHorizontal: 32,
+    alignItems:        'center',
+    paddingHorizontal: 40,
+    gap:               16,
   },
-  icon:       { fontSize: 48, marginBottom: 24 },
-  title:      { fontSize: 24, fontWeight: '700', color: '#FFFFFF', marginBottom: 8, letterSpacing: -0.5 },
-  domain:     { fontSize: 14, color: '#666666', marginBottom: 16, fontFamily: 'monospace' },
-  body:       { fontSize: 15, color: '#888888', textAlign: 'center', lineHeight: 22, marginBottom: 32 },
-  button:     { backgroundColor: '#1A1A1A', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 8, borderWidth: 1, borderColor: '#2A2A2A' },
-  buttonText: { color: '#FFFFFF', fontSize: 15, fontWeight: '600' },
+
+  // App mark
+  iconWrap: {
+    width:           72,
+    height:          72,
+    borderRadius:    18,
+    backgroundColor: '#16161a',
+    borderWidth:     1,
+    borderColor:     '#2a2a2e',
+    alignItems:      'center',
+    justifyContent:  'center',
+    marginBottom:    8,
+  },
+  appMark: {
+    fontSize:   34,
+    color:      '#3a3aff',
+    lineHeight: 40,
+  },
+
+  title: {
+    fontSize:      22,
+    fontWeight:    '700',
+    color:         '#ffffff',
+    letterSpacing: -0.4,
+    fontFamily:    'DMSans_700Bold',
+  },
+
+  // Blocked app chip
+  appPill: {
+    backgroundColor:   '#1c1c22',
+    borderWidth:       1,
+    borderColor:       '#2a2a2e',
+    borderRadius:      99,
+    paddingHorizontal: 14,
+    paddingVertical:   5,
+  },
+  appLabel: {
+    fontSize:   13,
+    color:      '#8888aa',
+    fontFamily: 'DMSans_400Regular',
+  },
+
+  body: {
+    fontSize:   15,
+    color:      '#8888aa',
+    textAlign:  'center',
+    lineHeight: 23,
+    fontFamily: 'DMSans_400Regular',
+  },
+
+  // Accent button
+  button: {
+    marginTop:         8,
+    backgroundColor:   '#3a3aff',
+    paddingHorizontal: 28,
+    paddingVertical:   12,
+    borderRadius:      10,
+  },
+  buttonText: {
+    color:      '#ffffff',
+    fontSize:   15,
+    fontWeight: '700',
+    fontFamily: 'DMSans_700Bold',
+  },
 });
