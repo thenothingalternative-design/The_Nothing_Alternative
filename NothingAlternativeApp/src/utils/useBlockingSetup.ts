@@ -53,6 +53,7 @@ export function useBlockingSetup(): BlockingSetupResult {
   }, []);
 
     useEffect(() => {
+      if (Platform.OS !== 'android') return;
       console.log('[BLOCKING] DeviceEventEmitter listener registered');
       const sub = DeviceEventEmitter.addListener('ShowBlockingOverlay', (pkg?: string) => {
         console.log('[BLOCKING] ShowBlockingOverlay received:', pkg);

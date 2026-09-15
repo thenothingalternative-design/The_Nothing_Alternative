@@ -18,6 +18,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Colors, Fonts, FontSizes, Radius, Spacing } from '../../theme';
 import { Divider } from '../../components';
 import { getOfferings, purchasePackage, restorePurchases } from '../../api/purchases';
+import { Platform } from 'react-native';
 import type { PurchasesPackage } from 'react-native-purchases';
 
 const PLANS = [
@@ -184,7 +185,7 @@ export default function PricingScreen() {
         {/* Footer */}
         <Text style={styles.footer}>
           All plans include a 7-day free trial{'\n'}
-          Secure payment via Google Play
+          Secure payment via {Platform.OS === 'ios' ? 'App Store' : 'Google Play'}
         </Text>
 
         {/* Comparison table */}

@@ -36,7 +36,7 @@ export default function BlockingOverlay({ visible, blockedApp, onDismiss }: Prop
 
   // Hardware back — user is already on home screen, just clear the overlay
   useEffect(() => {
-    if (!visible) return;
+    if (!visible || Platform.OS !== 'android') return;
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       onDismiss();
       return true;
