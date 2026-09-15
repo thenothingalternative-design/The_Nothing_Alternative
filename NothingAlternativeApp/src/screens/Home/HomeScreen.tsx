@@ -13,7 +13,7 @@
  *   this screen reflects it within 2 seconds via SessionContext polling.
  */
 
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -41,6 +41,7 @@ import {
 } from '../../components';
 import PermissionBanner from '../../components/PermissionBanner';
 import { useBlockingSetup } from '../../utils/useBlockingSetup';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 function fmtElapsed(s: number): string {
   const m = Math.floor(s / 60);
@@ -61,6 +62,7 @@ export default function HomeScreen() {
 
   const [goal,       setGoal]       = useState('');
   const [goalError,  setGoalError]  = useState(false);
+  const [goalTemplates, setGoalTemplates] = useState<string[]>([]);
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const { blockingStatus, requestPermission } = useBlockingSetup();
 
@@ -79,6 +81,21 @@ export default function HomeScreen() {
     }
   }, [session.isActive]);
 
+  useEffect(() => {
+    AsyncStorage.getItem('goal_templates').then(raw => {
+      if (raw) setGoalTemplates(JSON.parse(raw));
+    });
+  }, []);
+
+  const saveGoalAsTemplate = async (g: string) => {
+    let templates = [...goalTemplates];
+    templates = templates.filter(t => t !== g);
+    templates.unshift(g);
+    templates = templates.slice(0, 10);
+    setGoalTemplates(templates);
+    await AsyncStorage.setItem('goal_templates', JSON.stringify(templates));
+  };
+
   // ── Session toggle ─────────────────────────────────────────────────────────
   const handleToggle = async () => {
     if (session.isActive) {
@@ -91,6 +108,7 @@ export default function HomeScreen() {
         return;
       }
       if (!activeProfile) return;
+      await saveGoalAsTemplate(g);
       await session.startSession({
         goal:            g,
         profile_name:    activeProfile.name,
@@ -188,6 +206,40 @@ export default function HomeScreen() {
           </Text>
         </View>
 
+        {/* ── Goal templates ─────────────────────────────────────────────── */}
+        {!session.isActive && goalTemplates.length > 0 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={{ paddingHorizontal: Spacing.lg, marginTop: 6 }}
+            keyboardShouldPersistTaps="handled"
+          >
+            {goalTemplates.map((t, i) => (
+              <TouchableOpacity
+                key={i}
+                onPress={() => setGoal(t)}
+                style={{
+                  backgroundColor: Colors.bgRaised,
+                  borderColor:     Colors.border,
+                  borderWidth:     1,
+                  borderRadius:    Radius.pill,
+                  paddingHorizontal: 12,
+                  paddingVertical:   5,
+                  marginRight:     8,
+                }}
+              >
+                <Text style={{
+                  fontFamily: Fonts.sans,
+                  fontSize:   FontSizes.xs,
+                  color:      Colors.textSec,
+                }}>
+                  {t}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
+        
         {/* ── Profile ────────────────────────────────────────────────────── */}
         <View style={styles.row}>
           <Text style={styles.rowLabel}>PROFILE</Text>

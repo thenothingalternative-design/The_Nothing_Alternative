@@ -1,10 +1,13 @@
 {
   "last_goal": "testing",
-  "active_profile": "test",
+  "active_profile": "Default",
   "profiles": {
     "Default": {
       "allowed_apps": [
-        "resolve"
+        "claude",
+        "code",
+        "application",
+        "obsidian"
       ],
       "banned_keywords": [
         "youtube",
@@ -17,9 +20,36 @@
         "netflix"
       ]
     },
-    "test": {
+    "laptop profile": {
+      "allowed_apps": [],
+      "banned_keywords": [
+        "youtube",
+        "facebook",
+        "instagram",
+        "twitter",
+        "x.com",
+        "reddit",
+        "tiktok",
+        "netflix"
+      ]
+    },
+    "Phone Profile": {
+      "allowed_apps": [],
+      "banned_keywords": [
+        "youtube",
+        "facebook",
+        "instagram",
+        "twitter",
+        "x.com",
+        "reddit",
+        "tiktok",
+        "netflix"
+      ]
+    },
+    "Slayer Legend": {
       "allowed_apps": [
-        "resolve"
+        "com.gear2.growslayer",
+        "md.obsidian"
       ],
       "banned_keywords": [
         "youtube",
@@ -29,12 +59,177 @@
         "x.com",
         "reddit",
         "tiktok",
-        "netflix",
-        "twitch"
+        "netflix"
       ]
     }
   },
   "history": [
+    {
+      "ts": "2026-08-28T21:44:01",
+      "goal": "testing",
+      "duration": 6,
+      "blocked": 0,
+      "profile": "Default",
+      "block_log": []
+    },
+    {
+      "ts": "2026-08-28T21:43:49",
+      "goal": "Test",
+      "duration": 10,
+      "blocked": 0,
+      "profile": "Default",
+      "block_log": []
+    },
+    {
+      "ts": "2026-08-28T21:43:07",
+      "goal": "testing",
+      "duration": 11,
+      "blocked": 0,
+      "profile": "Default",
+      "block_log": []
+    },
+    {
+      "ts": "2026-08-28T21:42:53",
+      "goal": "testing",
+      "duration": 40,
+      "blocked": 0,
+      "profile": "Default",
+      "block_log": []
+    },
+    {
+      "ts": "2026-08-28T21:24:50",
+      "goal": "testing",
+      "duration": 44,
+      "blocked": 3,
+      "profile": "Default",
+      "block_log": [
+        {
+          "type": "app",
+          "name": "sldworks.exe",
+          "ts": "2026-08-28T21:24:36"
+        },
+        {
+          "type": "app",
+          "name": "olk.exe",
+          "ts": "2026-08-28T21:24:37"
+        },
+        {
+          "type": "app",
+          "name": "olk.exe",
+          "ts": "2026-08-28T21:24:43"
+        }
+      ]
+    },
+    {
+      "ts": "2026-08-28T21:14:31",
+      "goal": "testing",
+      "duration": 8,
+      "blocked": 1,
+      "profile": "Default",
+      "block_log": [
+        {
+          "type": "app",
+          "name": "obsidian.exe",
+          "ts": "2026-08-28T21:14:26"
+        }
+      ]
+    },
+    {
+      "ts": "2026-08-28T21:14:11",
+      "goal": "testing",
+      "duration": 36,
+      "blocked": 4,
+      "profile": "Default",
+      "block_log": [
+        {
+          "type": "app",
+          "name": "textinputhost.exe",
+          "ts": "2026-08-28T21:13:38"
+        },
+        {
+          "type": "app",
+          "name": "sldworks.exe",
+          "ts": "2026-08-28T21:13:39"
+        },
+        {
+          "type": "app",
+          "name": "olk.exe",
+          "ts": "2026-08-28T21:13:53"
+        },
+        {
+          "type": "app",
+          "name": "winstore.app.exe",
+          "ts": "2026-08-28T21:14:06"
+        }
+      ]
+    },
+    {
+      "ts": "2026-08-28T21:13:20",
+      "goal": "testing",
+      "duration": 20,
+      "blocked": 10,
+      "profile": "Default",
+      "block_log": [
+        {
+          "type": "app",
+          "name": "textinputhost.exe",
+          "ts": "2026-08-28T21:13:03"
+        },
+        {
+          "type": "app",
+          "name": "textinputhost.exe",
+          "ts": "2026-08-28T21:13:05"
+        },
+        {
+          "type": "app",
+          "name": "olk.exe",
+          "ts": "2026-08-28T21:13:05"
+        },
+        {
+          "type": "app",
+          "name": "textinputhost.exe",
+          "ts": "2026-08-28T21:13:07"
+        },
+        {
+          "type": "app",
+          "name": "textinputhost.exe",
+          "ts": "2026-08-28T21:13:09"
+        },
+        {
+          "type": "app",
+          "name": "textinputhost.exe",
+          "ts": "2026-08-28T21:13:11"
+        },
+        {
+          "type": "app",
+          "name": "textinputhost.exe",
+          "ts": "2026-08-28T21:13:13"
+        },
+        {
+          "type": "app",
+          "name": "textinputhost.exe",
+          "ts": "2026-08-28T21:13:15"
+        },
+        {
+          "type": "app",
+          "name": "textinputhost.exe",
+          "ts": "2026-08-28T21:13:17"
+        },
+        {
+          "type": "app",
+          "name": "textinputhost.exe",
+          "ts": "2026-08-28T21:13:19"
+        }
+      ]
+    },
+    {
+      "ts": "2026-08-28T20:47:11",
+      "goal": "testing",
+      "duration": 0,
+      "blocked": 0,
+      "profile": "Default",
+      "block_log": []
+    },
     {
       "ts": "2026-06-22T14:41:27",
       "goal": "testing",
@@ -358,11 +553,13 @@
       ]
     }
   ],
-  "profiles_updated_at": {},
+  "profiles_updated_at": {
+    "test": "2026-08-25T14:59:31",
+    "Default": "2026-08-28T21:42:08",
+    "laptop profile": "2026-08-28T21:34:15"
+  },
   "pending_sync": null,
   "goal_templates": [
     "testing"
-  ],
-  "streak_days": 1,
-  "streak_last_date": "2026-06-22"
+  ]
 }

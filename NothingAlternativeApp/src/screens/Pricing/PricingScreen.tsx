@@ -186,6 +186,37 @@ export default function PricingScreen() {
           All plans include a 7-day free trial{'\n'}
           Secure payment via Google Play
         </Text>
+
+        {/* Comparison table */}
+        <Text style={styles.tableHeading}>What's included</Text>
+
+        <View style={styles.table}>
+          {/* Header */}
+          <View style={[styles.tableRow, styles.tableHeader]}>
+            <Text style={[styles.tableCell, styles.tableFeatureCell, styles.tableHeaderText]}>Feature</Text>
+            <Text style={[styles.tableCell, styles.tableColCell, styles.tableHeaderText]}>Free</Text>
+            <Text style={[styles.tableCell, styles.tableColCell, styles.tableHeaderGreen]}>Premium</Text>
+          </View>
+
+          {[
+            ['Block websites',           '✓', '✓'],
+            ['Block distracting apps',   '✓', '✓'],
+            ['Unlimited session length', '✓', '✓'],
+            ['Focus profiles',           '1',  'Unlimited'],
+            ['Session history',          '—',  '✓'],
+            ['Cross-device sync',        '—',  '✓'],
+            ['Stats & charts',           '—',  '✓'],
+            ['Goal templates',           '—',  '✓'],
+          ].map(([feature, free, premium], i) => (
+            <View key={feature} style={[styles.tableRow, i % 2 === 0 && styles.tableAltRow]}>
+              <Text style={[styles.tableCell, styles.tableFeatureCell]}>{feature}</Text>
+              <Text style={[styles.tableCell, styles.tableColCell, styles.tableFreeVal]}>{free}</Text>
+              <Text style={[styles.tableCell, styles.tableColCell,
+                (premium === '✓' || premium === 'Unlimited') ? styles.tablePremiumVal : styles.tableFreeVal
+              ]}>{premium}</Text>
+            </View>
+          ))}
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -305,6 +336,25 @@ const styles = StyleSheet.create({
     color:      Colors.textPri,
   },
 
+  tableHeading: {
+  fontFamily:  Fonts.sansBold,
+  fontSize:    FontSizes.md,
+  color:       Colors.textSec,
+  marginTop:   Spacing.xl,
+  marginBottom: Spacing.sm,
+  },
+  table:            { borderRadius: Radius.md, overflow: 'hidden', borderWidth: 1, borderColor: Colors.border },
+  tableRow:         { flexDirection: 'row', alignItems: 'center', minHeight: 40 },
+  tableHeader:      { backgroundColor: Colors.bgRaised },
+  tableAltRow:      { backgroundColor: Colors.bgRaised },
+  tableCell:        { paddingVertical: 10, paddingHorizontal: 8 },
+  tableFeatureCell: { flex: 1, fontSize: FontSizes.sm, color: Colors.textSec, fontFamily: Fonts.sans, paddingLeft: 14 },
+  tableColCell:     { width: 80, textAlign: 'center', fontSize: FontSizes.sm, fontFamily: Fonts.sans },
+  tableHeaderText:  { color: Colors.textMut, fontFamily: Fonts.sansBold, fontSize: FontSizes.xs },
+  tableHeaderGreen: { color: Colors.green,   fontFamily: Fonts.sansBold, fontSize: FontSizes.xs, width: 80, textAlign: 'center' },
+  tableFreeVal:     { color: Colors.textMut },
+  tablePremiumVal:  { color: Colors.green, fontFamily: Fonts.sansBold },
+  
   error: {
     fontFamily: Fonts.mono,
     fontSize:   FontSizes.xs,

@@ -13,6 +13,11 @@ try:
 except ImportError:
     _httpx = None; _HAS_HTTPX = False
 
+try:
+    ctypes.windll.shcore.SetProcessDpiAwareness(2)  # per-monitor DPI aware
+except Exception:
+    pass
+
 # ── Optional deps ──────────────────────────────────────────────────────────────
 try:
     import win32api as _win32api  # type: ignore[import]
@@ -90,7 +95,7 @@ def api_headers() -> dict:
     return {"Authorization": f"Bearer {API_TOKEN}", "Content-Type": "application/json"}
 
 _DEFAULT_PROFILE = {
-    "allowed_apps":    ["resolve"] ,
+    "allowed_apps":    [""] ,
     "banned_keywords": ["youtube","facebook","instagram","twitter",
                         "x.com","reddit","tiktok","netflix"],
 }
@@ -102,8 +107,8 @@ DEFAULT_CONFIG = {
     "profiles_updated_at": {},   # {profile_name: ISO timestamp of last local edit}
     "pending_sync": None,   # {"action": "start"|"stop", "payload": {...}}
     "goal_templates": [],   # list of saved goal strings 
-    "streak_days": 0,
-    "streak_last_date": "",   # ISO date string "2025-06-01" 
+    #"streak_days": 0,
+    #"streak_last_date": "",   # ISO date string "2025-06-01" 
 }
 
 def load_config() -> dict:
@@ -145,16 +150,16 @@ def record_session(cfg, goal, duration_s, blocked, profile, block_log):
     cfg["history"] = cfg["history"][:120]
 
     # Update streak
-    today = datetime.now().date().isoformat()
-    last  = cfg.get("streak_last_date", "")
-    if last == today:
-        pass  # already recorded a session today, streak unchanged
-    elif last == (datetime.now().date() - __import__("datetime").timedelta(days=1)).isoformat():
-        cfg["streak_days"] = cfg.get("streak_days", 0) + 1
-        cfg["streak_last_date"] = today
-    else:
-        cfg["streak_days"] = 1  # streak broken, start fresh
-        cfg["streak_last_date"] = today
+    # today = datetime.now().date().isoformat()
+    # last  = cfg.get("streak_last_date", "")
+    # if last == today:
+      #  pass  # already recorded a session today, streak unchanged
+    # elif last == (datetime.now().date() - __import__("datetime").timedelta(days=1)).isoformat():
+      #  cfg["streak_days"] = cfg.get("streak_days", 0) + 1
+      #  cfg["streak_last_date"] = today
+    # else:
+      #  cfg["streak_days"] = 1  # streak broken, start fresh
+      #  cfg["streak_last_date"] = today
 
     save_config(cfg)
 
@@ -200,10 +205,10 @@ def _api_post(path: str, body: dict) -> dict | None:
 
 
 def _api_get(path: str) -> dict | None:
-    """
-    GET API_BASE+path with the current Bearer token.
-    Returns parsed JSON dict on success, None on any failure.
-    """
+    
+   # GET API_BASE+path with the current Bearer token.
+   # Returns parsed JSON dict on success, None on any failure.
+    
     if not API_TOKEN:
         return None
     url = f"{API_BASE}{path}"
@@ -211,6 +216,7 @@ def _api_get(path: str) -> dict | None:
     try:
         if _HAS_HTTPX:
             r = _httpx.get(url, headers=headers, timeout=8)  # type: ignore[union-attr]
+            print(f"[SYNC] GET {path} status={r.status_code} token={'set' if API_TOKEN else 'MISSING'}")
             return r.json() if r.status_code < 500 else None
         else:
             import urllib.request
@@ -319,6 +325,8 @@ def get_installed_apps() -> list[dict]:
                 winreg.CloseKey(sub)
                 name = name.strip()
                 if not name or _ignore(name, pub): continue
+                if len(name) < 2 or name.startswith("{") or "update" in name.lower() or "redistrib" in name.lower():
+                    continue    
                 hint = os.path.basename(loc.rstrip("\\/")).lower() if loc else name.split()[0].lower()
                 kl = name.lower()
                 if kl not in apps:
@@ -326,10 +334,9 @@ def get_installed_apps() -> list[dict]:
             except OSError: continue
         winreg.CloseKey(key)
     seen: set[str] = set()
-    for proc in psutil.process_iter(["name", "exe"]):
+    for proc in psutil.process_iter(["name"]):
         try:
             pname = proc.info["name"] or ""
-            pexe  = proc.info["exe"]  or ""
             if not pname.endswith(".exe"): continue
             base = pname[:-4].lower()
             if base in seen: continue
@@ -338,12 +345,6 @@ def get_installed_apps() -> list[dict]:
                         "wininit","services","spoolsv","taskhostw","python",
                         "pythonw","cmd","powershell","conhost","nothing_alternative"}: continue
             display = pname[:-4]
-            if _HAS_WIN32 and pexe:
-                try:
-                    info = _win32api.GetFileVersionInfo(  # type: ignore[union-attr]
-                        pexe, "\\StringFileInfo\\040904b0\\FileDescription")
-                    if info and info.strip(): display = info.strip()
-                except Exception: pass
             kl = display.lower()
             if kl not in apps:
                 apps[kl] = {"display_name": display, "exe_hint": base, "source": "running"}
@@ -368,6 +369,57 @@ TEXT_MUT   = "#3a3a44"
 RED        = "#ee4455"
 AMBER      = "#ffaa33"
 GREEN      = "#00e676"
+
+# ══════════════════════════════════════════════════════════════════════════════
+# BLOCKING OVERLAY
+# ══════════════════════════════════════════════════════════════════════════════
+
+def show_blocked_overlay(app, blocked_name: str, goal: str = ""):
+    """Show a full-screen blocked overlay, matching the Android BlockingOverlay."""
+    overlay = tk.Toplevel(app)
+    overlay.attributes("-fullscreen", True)
+    overlay.attributes("-topmost", True)
+    overlay.configure(bg="#0A0A0A")
+    overlay.focus_force()
+
+    frame = tk.Frame(overlay, bg="#0A0A0A")
+    frame.place(relx=0.5, rely=0.5, anchor="center")
+
+    # Icon tile
+    icon_frame = tk.Frame(frame, bg="#16161a", width=72, height=72,
+                          highlightbackground="#2a2a2e", highlightthickness=1)
+    icon_frame.pack(pady=(0, 12))
+    icon_frame.pack_propagate(False)
+    tk.Label(icon_frame, text="∅", font=("DM Sans", 28), fg="#3a3aff",
+             bg="#16161a").place(relx=0.5, rely=0.5, anchor="center")
+
+    tk.Label(frame, text="App blocked", font=("DM Sans", 20, "bold"),
+             fg="#ffffff", bg="#0A0A0A").pack()
+
+    if blocked_name:
+        pill = tk.Label(frame, text=blocked_name, font=("DM Sans", 11),
+                        fg="#8888aa", bg="#1c1c22",
+                        padx=14, pady=5,
+                        highlightbackground="#2a2a2e", highlightthickness=1)
+        pill.pack(pady=6)
+
+    body = goal if goal else "A focus session is active."
+    tk.Label(frame, text=f"You're focusing on \"{goal}\".\nCome back when you're done." if goal
+             else "A focus session is active.\nCome back when you're done.",
+             font=("DM Sans", 13), fg="#8888aa", bg="#0A0A0A",
+             justify="center").pack(pady=8)
+
+    def dismiss():
+        overlay.destroy()
+
+    btn = tk.Button(frame, text="← Go back", font=("DM Sans", 13, "bold"),
+                    fg="#ffffff", bg="#3a3aff", activebackground="#2a2aee",
+                    relief="flat", padx=28, pady=10, cursor="hand2",
+                    command=dismiss)
+    btn.pack(pady=(8, 0))
+
+    # Auto-dismiss after 8 seconds as a fallback
+    overlay.after(8000, lambda: overlay.destroy() if overlay.winfo_exists() else None)
 
 # ══════════════════════════════════════════════════════════════════════════════
 # OPTION 2 — KEYBOARD-LIB TAB CLOSER
@@ -468,7 +520,7 @@ block_log:  list[dict] = []
 _SELF_EXE    = os.path.basename(sys.executable).lower()
 _SELF_SCRIPT = os.path.basename(__file__).lower()
 
-def enforce_gatekeeper(allowed_apps, banned_keywords):
+def enforce_gatekeeper(allowed_apps, banned_keywords, cfg):
     global session_active, log_queue, blocked_count, block_log, _status_blocked_sites
     blocked_count = 0; block_log = []
 
@@ -486,9 +538,17 @@ def enforce_gatekeeper(allowed_apps, banned_keywords):
         "claude.exe","systemsettings.exe","applicationframehost.exe",
         "searchhost.exe","searchapp.exe","shellexperiencehost.exe",
         "startmenuexperiencehost.exe","lockapp.exe","logonui.exe",
+        "textinputhost.exe", "calculator.exe", "applicationframehost.exe", 
+        "systemsettings.exe", "shellexperiencehost.exe", "searchhost.exe",
+        "searchui.exe","startmenuexperiencehost.exe","lockapp.exe",
+        "fontdrvhost.exe", "dwm.exe", "ctfmon.exe", "sihost.exe", "taskhostw.exe",
+        "runtimebroker.exe", "dllhost.exe", "wudfhost.exe", "msedgewebview2.exe",
+        "widgets.exe", "widgetservice.exe", "phoneexperiencehost.exe",
+        "yourphone.exe", "winstore.app.exe",
         _SELF_EXE,
     }
-    browsers = ["brave","chrome","msedge","firefox"]
+    browsers = ['chrome','firefox','brave','browser','edge','opera','samsung',
+                  'duckduckgo','vivaldi','yandex','tor','puffin','maxthon','browsers']
 
     keyboard_note = " (keyboard lib active)" if _HAS_KEYBOARD else " (keyboard lib not found — using fallback)"
     log_queue.append(("system",
@@ -575,6 +635,7 @@ def enforce_gatekeeper(allowed_apps, banned_keywords):
                 if pn.endswith(".exe"):
                     log_queue.append(("blocker", f"[BLOCKER] Closed: {pn}"))
                     _record("app", pn)
+                    app.after(0, show_blocked_overlay, app, pn, cfg.get("last_goal", ""))
                     proc.terminate()
             except (psutil.NoSuchProcess, psutil.AccessDenied): pass
 
@@ -1355,7 +1416,7 @@ class PricingPanel(ctk.CTkToplevel):
     def __init__(self, parent):
         super().__init__(parent)
         self.title("Upgrade to Premium")
-        self.geometry("720x520")
+        self.geometry("720x820") # size ykwim
         self.resizable(False, False)
         self.configure(fg_color=BG_BASE)
         self.grab_set()
@@ -1418,6 +1479,50 @@ class PricingPanel(ctk.CTkToplevel):
 
         for p in plans:
             self._make_card(cards_frame, p)
+            
+        # Comparison table
+        _divider(self, pady=(20, 0))
+        ctk.CTkLabel(self, text="What's included", font=("DM Sans", 13),
+                    text_color=TEXT_SEC).pack(pady=(12, 8), anchor="w", padx=28)
+
+        table = ctk.CTkFrame(self, fg_color=BG_SURFACE, corner_radius=12)
+        table.pack(padx=28, fill="x", pady=(0, 20))
+
+        def hdr_row(parent):
+            r = ctk.CTkFrame(parent, fg_color=BG_RAISED, corner_radius=0, height=36)
+            r.pack(fill="x"); r.pack_propagate(False)
+            ctk.CTkLabel(r, text="Feature", font=("DM Sans", 11, "bold"),
+                        text_color=TEXT_MUT, anchor="w").pack(side="left", padx=16)
+            ctk.CTkLabel(r, text="Premium", font=("DM Sans", 11, "bold"),
+                        text_color=GREEN, width=100, anchor="center").pack(side="right", padx=8)
+            ctk.CTkLabel(r, text="Free", font=("DM Sans", 11, "bold"),
+                        text_color=TEXT_MUT, width=100, anchor="center").pack(side="right", padx=8)
+
+        def tbl_row(parent, feature, free, premium, alt=False):
+            r = ctk.CTkFrame(parent, fg_color=BG_RAISED if alt else BG_SURFACE,
+                            corner_radius=0, height=36)
+            r.pack(fill="x"); r.pack_propagate(False)
+            ctk.CTkLabel(r, text=feature, font=("DM Sans", 12),
+                        text_color=TEXT_SEC, anchor="w").pack(side="left", padx=16)
+            pcolor = GREEN if premium in ("✓", "Unlimited") else TEXT_MUT
+            ctk.CTkLabel(r, text=premium, font=("DM Sans", 12),
+                        text_color=pcolor, width=100, anchor="center").pack(side="right", padx=8)
+            ctk.CTkLabel(r, text=free, font=("DM Sans", 12),
+                        text_color=TEXT_MUT, width=100, anchor="center").pack(side="right", padx=8)
+
+        hdr_row(table)
+        ROWS = [
+            ("Block websites",           "✓", "✓"),
+            ("Block distracting apps",   "✓", "✓"),
+            ("Unlimited session length", "✓", "✓"),
+            ("Focus profiles",           "1",  "Unlimited"),
+            ("Session history",          "—",  "✓"),
+            ("Cross-device sync",        "—",  "✓"),
+            ("Stats & charts",           "—",  "✓"),
+            ("Goal templates",           "—",  "✓"),
+        ]
+        for i, (f, fr, pr) in enumerate(ROWS):
+            tbl_row(table, f, fr, pr, alt=i % 2 == 0)
 
         # ── Footer note ───────────────────────────────────────────────────────
         ctk.CTkLabel(self,
@@ -1497,6 +1602,7 @@ class PricingPanel(ctk.CTkToplevel):
                       corner_radius=8, height=36,
                       command=lambda pl=plan["plan"]: self._choose(pl)
                       ).pack(fill="x", pady=(8, 0))
+
 
     def _choose(self, plan: str):
         if self._loading:
@@ -2335,7 +2441,7 @@ class NothingAlternative(ctk.CTk):
         self.start_btn.configure(text="■  Stop session", fg_color=BG_RAISED,
                                  hover_color="#2a1018", border_color=RED,
                                  border_width=1, text_color=RED)
-        self.break_btn.pack(fill="x", pady=(8, 0))
+        # self.break_btn.pack(fill="x", pady=(8, 0))
         self.dot_canvas.itemconfig(self.dot_oval, fill=GREEN)
         self.status_lbl.configure(text="active", text_color=GREEN)
         self.tray.update(True)
@@ -2344,7 +2450,8 @@ class NothingAlternative(ctk.CTk):
         prof = active_profile(self.cfg)
         threading.Thread(target=enforce_gatekeeper,
                          args=(list(prof["allowed_apps"]),
-                               list(prof["banned_keywords"])),
+                               list(prof["banned_keywords"]),
+                               self.cfg),
                          daemon=True).start()
         # ── Backend sync: notify all devices this session has started ─────────
         threading.Thread(target=self._sync_start_session,
@@ -2367,7 +2474,7 @@ class NothingAlternative(ctk.CTk):
                          daemon=True).start()
         self.start_btn.configure(text="▶  Start session", fg_color=ACCENT,
                                  hover_color=ACCENT_HVR, border_width=0, text_color=TEXT_PRI)
-        self.break_btn.pack_forget()
+        # self.break_btn.pack_forget()
         self._end_break()
         self.dot_canvas.itemconfig(self.dot_oval, fill=TEXT_MUT)
         self.status_lbl.configure(text="idle", text_color=TEXT_MUT)
@@ -2429,7 +2536,7 @@ class NothingAlternative(ctk.CTk):
     # Failures are swallowed silently — local behaviour is never interrupted.
 
     def _fetch_profiles_from_backend(self) -> None:
-        data = _api_get("/profiles")
+        data = _api_get("/profiles/")
         if not data or not isinstance(data, list) or len(data) == 0:
             return
         local_times = self.cfg.get("profiles_updated_at", {})
@@ -2574,7 +2681,7 @@ class NothingAlternative(ctk.CTk):
             self.tray.update(True)
             self.elapsed = 0
             threading.Thread(target=enforce_gatekeeper,
-                             args=(allowed, blocked), daemon=True).start()
+                             args=(allowed, blocked, self.cfg), daemon=True).start()
             self._set_poll_interval(2)
             self._tick(); self._poll_log(); self._update_title_clock()
 
@@ -2593,8 +2700,8 @@ class NothingAlternative(ctk.CTk):
         if data.get("active"):
             _status_blocked_sites = data.get("blocked", _status_blocked_sites)
             # If a remote device started a session and we aren't running one, ask to join
-            if not self.session_active and data.get("started_by") != _DEVICE_ID:
-                self.after(0, self._prompt_join_session, data)
+            # if not self.session_active and data.get("started_by") != _DEVICE_ID:
+            #     self.after(0, self._prompt_join_session, data)
 
         new_status = data.get("subscription_status", "free")
         new_premium = data.get("is_premium", False)
@@ -2720,5 +2827,7 @@ if __name__ == "__main__":
     if sys.platform == "darwin":
         sys.exit("This file is for Windows only. Use nothing_alternative_mac.py on macOS.") 
     _start_status_server()   # Option 1: start HTTP server for browser extension
+    global app
+    ctk.deactivate_automatic_dpi_awareness()
     app = NothingAlternative()
     app.mainloop()
